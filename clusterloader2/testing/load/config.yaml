@@ -322,130 +322,30 @@ steps:
       minPodsInSmallCluster: {{$MIN_PODS_IN_SMALL_CLUSTERS}}
 {{end}}
 
-- name: Scaling and updating objects
-  phases:
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$bigDeploymentsPerNamespace}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-    - basename: big-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        # DNS Test clients are enabled only in the medium-size deployment.
-        EnableDNSTests: false
-        ReplicasMin: {{MultiplyInt $BIG_GROUP_SIZE 0.5}}
-        ReplicasMax: {{MultiplyInt $BIG_GROUP_SIZE 1.5}}
-        SvcName: big-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$mediumDeploymentsPerNamespace}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-    - basename: medium-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        EnableDNSTests: {{$ENABLE_DNSTESTS}}
-        ReplicasMin: {{MultiplyInt $MEDIUM_GROUP_SIZE 0.5}}
-        ReplicasMax: {{MultiplyInt $MEDIUM_GROUP_SIZE 1.5}}
-        SvcName: medium-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$smallDeploymentsPerNamespace}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-    - basename: small-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        # DNS Test clients are enabled only in the medium-size deployment.
-        EnableDNSTests: false
-        ReplicasMin: {{MultiplyInt $SMALL_GROUP_SIZE 0.5}}
-        ReplicasMax: {{MultiplyInt $SMALL_GROUP_SIZE 1.5}}
-        SvcName: small-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$SMALL_STATEFUL_SETS_PER_NAMESPACE}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: small-statefulset
-        objectTemplatePath: statefulset.yaml
-        templateFillMap:
-          ReplicasMin: {{MultiplyInt $SMALL_GROUP_SIZE 0.5}}
-          ReplicasMax: {{MultiplyInt $SMALL_GROUP_SIZE 1.5}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$MEDIUM_STATEFUL_SETS_PER_NAMESPACE}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: medium-statefulset
-        objectTemplatePath: statefulset.yaml
-        templateFillMap:
-          ReplicasMin: {{MultiplyInt $MEDIUM_GROUP_SIZE 0.5}}
-          ReplicasMax: {{MultiplyInt $MEDIUM_GROUP_SIZE 1.5}}
-{{if not $DISABLE_DAEMONSETS}}
-  - namespaceRange:
-      min: 1
-      max: 1
-    replicasPerNamespace: 1
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: daemonset
-        objectTemplatePath: daemonset.yaml
-        templateFillMap:
-          Image: k8s.gcr.io/pause:3.1
-{{end}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: 1
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: small-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{MultiplyInt $SMALL_GROUP_SIZE 0.5}}
-          ReplicasMax: {{MultiplyInt $SMALL_GROUP_SIZE 1.5}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: 1
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: medium-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{MultiplyInt $MEDIUM_GROUP_SIZE 0.5}}
-          ReplicasMax: {{MultiplyInt $MEDIUM_GROUP_SIZE 1.5}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$bigJobsPerNamespace}}
-    tuningSet: RandomizedScalingTimeLimited
-    objectBundle:
-      - basename: big-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{MultiplyInt $BIG_GROUP_SIZE 0.5}}
-          ReplicasMax: {{MultiplyInt $BIG_GROUP_SIZE 1.5}}
-
-- name: Waiting for objects to become scaled
-  measurements:
-  - Method: WaitForControlledPodsRunning
-    Instances:
-    - Identifier: WaitForRunningDeployments
-    - Identifier: WaitForRunningStatefulSets
-    - Identifier: WaitForRunningDaemonSets
-    - Identifier: WaitForRunningJobs
-    Params:
-      action: gather
+- module:
+    path: /modules/reconcile-objects.yaml
+    params:
+      actionName: "scaling and updating"
+      namespaces: {{$namespaces}}
+      randomScaleFactor: 0.5
+      daemonSetImage: k8s.gcr.io/pause:3.1
+      daemonSetReplicas: 1
+      bigDeploymentSize: {{$BIG_GROUP_SIZE}}
+      bigDeploymentsPerNamespace: {{$bigDeploymentsPerNamespace}}
+      mediumDeploymentSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumDeploymentsPerNamespace: {{$mediumDeploymentsPerNamespace}}
+      smallDeploymentSize: {{$SMALL_GROUP_SIZE}}
+      smallDeploymentsPerNamespace: {{$smallDeploymentsPerNamespace}}
+      smallStatefulSetSize: {{$SMALL_GROUP_SIZE}}
+      smallStatefulSetsPerNamespace: {{$SMALL_STATEFUL_SETS_PER_NAMESPACE}}
+      mediumStatefulSetSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumStatefulSetsPerNamespace: {{$MEDIUM_STATEFUL_SETS_PER_NAMESPACE}}
+      bigJobSize: {{$BIG_GROUP_SIZE}}
+      bigJobsPerNamespace: 1
+      mediumJobSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumJobsPerNamespace: 1
+      smallJobSize: {{$SMALL_GROUP_SIZE}}
+      smallJobsPerNamespace: 1
 
 - name: Deleting objects
   phases:

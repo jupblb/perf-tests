@@ -1,6 +1,14 @@
 ## Input params
+# Valid actions: "creating", "scaling and updating"
 {{$actionName := printf "%s objects" .actionName}}
 {{$namespaces := .namespaces}}
+
+# Derivative values
+{{$is_creating := (eq .actionName "creating")}}
+{{$is_scaling := (eq .actionName "scaling and updating")}}
+{{$tuning_set := "N/A"}}
+{{if $is_creating}}{{$tuning_set = "RandomizedSaturationTimeLimited"}}{{end}}
+{{if $is_scaling}}{{$tuning_set = "RandomizedScalingTimeLimited"}}{{end}}
 
 ## TODO: Document this one
 {{$randomScaleFactor := DefaultParam .randomScaleFactor 0}}
@@ -37,10 +45,11 @@
 {{$ENABLE_PVS := DefaultParam .CL2_ENABLE_PVS true}}
 
 ## Variables
-{{$minReplicaFactor := SubtractInt 1 $randomScaleFactor}}
-{{$maxReplicaFactor := AddInt 1 $randomScaleFactor}}
+{{$minReplicaFactor := SubtractFloat 1 $randomScaleFactor}}
+{{$maxReplicaFactor := AddFloat 1 $randomScaleFactor}}
 
 steps:
+{{if $is_creating}}
 - name: Starting measurement for '{{$actionName}}'
   measurements:
   - Method: WaitForControlledPodsRunning
@@ -66,9 +75,11 @@ steps:
       checkIfPodsAreUpdated: true
       labelSelector: group = load
       operationTimeout: 15m
+{{end}}
 
 - name: {{$actionName}}
   phases:
+{{if $is_creating}}
   - namespaceRange:
       min: 1
       max: 1
@@ -79,19 +90,22 @@ steps:
       objectTemplatePath: daemonset.yaml
       templateFillMap:
         Image: {{$daemonSetImage}}
+{{end}}
   - namespaceRange:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$bigDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
+{{if $is_creating}}
     - basename: big-deployment
       objectTemplatePath: configmap.yaml
     - basename: big-deployment
       objectTemplatePath: secret.yaml
-{{if $ENABLE_NETWORKPOLICIES}}
+  {{if $ENABLE_NETWORKPOLICIES}}
     - basename: big-deployment
       objectTemplatePath: networkpolicy.yaml
+  {{end}}
 {{end}}
     - basename: big-deployment
       objectTemplatePath: deployment.yaml
@@ -106,15 +120,17 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$mediumDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
+{{if $is_creating}}
     - basename: medium-deployment
       objectTemplatePath: configmap.yaml
     - basename: medium-deployment
       objectTemplatePath: secret.yaml
-{{if $ENABLE_NETWORKPOLICIES}}
+  {{if $ENABLE_NETWORKPOLICIES}}
     - basename: medium-deployment
       objectTemplatePath: networkpolicy.yaml
+  {{end}}
 {{end}}
     - basename: medium-deployment
       objectTemplatePath: deployment.yaml
@@ -128,15 +144,17 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$smallDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
+{{if $is_creating}}
     - basename: small-deployment
       objectTemplatePath: configmap.yaml
     - basename: small-deployment
       objectTemplatePath: secret.yaml
-{{if $ENABLE_NETWORKPOLICIES}}
+  {{if $ENABLE_NETWORKPOLICIES}}
     - basename: small-deployment
       objectTemplatePath: networkpolicy.yaml
+  {{end}}
 {{end}}
     - basename: small-deployment
       objectTemplatePath: deployment.yaml
@@ -151,10 +169,12 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$smallStatefulSetsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
+{{if $is_creating}}
     - basename: small-statefulset
       objectTemplatePath: statefulset_service.yaml
+{{end}}
     - basename: small-statefulset
       objectTemplatePath: statefulset.yaml
       templateFillMap:
@@ -164,20 +184,34 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$mediumStatefulSetsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
+{{if $is_creating}}
     - basename: medium-statefulset
       objectTemplatePath: statefulset_service.yaml
+{{end}}
     - basename: medium-statefulset
       objectTemplatePath: statefulset.yaml
       templateFillMap:
         ReplicasMin: {{MultiplyInt $mediumStatefulSetSize $minReplicaFactor}}
         ReplicasMax: {{MultiplyInt $mediumStatefulSetSize $maxReplicaFactor}}
+{{if $is_scaling}}
+  - namespaceRange:
+      min: 1
+      max: 1
+    replicasPerNamespace: {{$daemonSetReplicas}}
+    tuningset: RandomizedScalingTimeLimited
+    objectBundle:
+    - basename: daemonset
+      objectTemplatePath: daemonset.yaml
+      templateFillMap:
+        Image: {{$daemonSetImage}}
+{{end}}
   - namespaceRange:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$smallJobsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
     - basename: small-job
       objectTemplatePath: job.yaml
@@ -188,7 +222,7 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$mediumJobsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
     - basename: medium-job
       objectTemplatePath: job.yaml
@@ -199,7 +233,7 @@ steps:
       min: 1
       max: {{$namespaces}}
     replicasPerNamespace: {{$bigJobsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
+    tuningSet: {{$tuning_set}}
     objectBundle:
     - basename: big-job
       objectTemplatePath: job.yaml
