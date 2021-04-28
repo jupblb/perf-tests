@@ -135,184 +135,29 @@ steps:
       - basename: daemonset-priorityclass
         objectTemplatePath: daemonset-priorityclass.yaml
 
-- name: Starting measurement for waiting for pods
-  measurements:
-  - Method: WaitForControlledPodsRunning
-    Instances:
-    - Identifier: WaitForRunningDeployments
-      Params:
-        apiVersion: apps/v1
-        kind: Deployment
-    - Identifier: WaitForRunningStatefulSets
-      Params:
-        apiVersion: apps/v1
-        kind: StatefulSet
-    - Identifier: WaitForRunningDaemonSets
-      Params:
-        apiVersion: apps/v1
-        kind: DaemonSet
-    - Identifier: WaitForRunningJobs
-      Params:
-        apiVersion: batch/v1
-        kind: Job
-    Params:
-      action: start
-      labelSelector: group = load
-      operationTimeout: 15m
-      checkIfPodsAreUpdated: {{$CHECK_IF_PODS_ARE_UPDATED}}
-
-- name: Creating objects
-  phases:
-{{if not $DISABLE_DAEMONSETS}}
-  - namespaceRange:
-      min: 1
-      max: 1
-    replicasPerNamespace: 1
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-    - basename: daemonset
-      objectTemplatePath: daemonset.yaml
-      templateFillMap:
-        Image: k8s.gcr.io/pause:3.0
-{{end}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$bigDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-    - basename: big-deployment
-      objectTemplatePath: configmap.yaml
-    - basename: big-deployment
-      objectTemplatePath: secret.yaml
-    {{if $ENABLE_NETWORKPOLICIES}}
-    - basename: big-deployment
-      objectTemplatePath: networkpolicy.yaml
-    {{end}}
-    - basename: big-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        # DNS Test clients are enabled only in the medium-size deployment.
-        EnableDNSTests: false
-        ReplicasMin: {{$BIG_GROUP_SIZE}}
-        ReplicasMax: {{$BIG_GROUP_SIZE}}
-        SvcName: big-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$mediumDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-    - basename: medium-deployment
-      objectTemplatePath: configmap.yaml
-    - basename: medium-deployment
-      objectTemplatePath: secret.yaml
-    {{if $ENABLE_NETWORKPOLICIES}}
-    - basename: medium-deployment
-      objectTemplatePath: networkpolicy.yaml
-    {{end}}
-    - basename: medium-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        EnableDNSTests: {{$ENABLE_DNSTESTS}}
-        ReplicasMin: {{$MEDIUM_GROUP_SIZE}}
-        ReplicasMax: {{$MEDIUM_GROUP_SIZE}}
-        SvcName: medium-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$smallDeploymentsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-    - basename: small-deployment
-      objectTemplatePath: configmap.yaml
-    - basename: small-deployment
-      objectTemplatePath: secret.yaml
-    {{if $ENABLE_NETWORKPOLICIES}}
-    - basename: small-deployment
-      objectTemplatePath: networkpolicy.yaml
-    {{end}}
-    - basename: small-deployment
-      objectTemplatePath: deployment.yaml
-      templateFillMap:
-        # DNS Test clients are enabled only in the medium-size deployment.
-        EnableDNSTests: false
-        ReplicasMin: {{$SMALL_GROUP_SIZE}}
-        ReplicasMax: {{$SMALL_GROUP_SIZE}}
-        SvcName: small-service
-        CpuRequest: 5m
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$SMALL_STATEFUL_SETS_PER_NAMESPACE}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-      - basename: small-statefulset
-        objectTemplatePath: statefulset_service.yaml
-      - basename: small-statefulset
-        objectTemplatePath: statefulset.yaml
-        templateFillMap:
-          ReplicasMin: {{$SMALL_GROUP_SIZE}}
-          ReplicasMax: {{$SMALL_GROUP_SIZE}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$MEDIUM_STATEFUL_SETS_PER_NAMESPACE}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-      - basename: medium-statefulset
-        objectTemplatePath: statefulset_service.yaml
-      - basename: medium-statefulset
-        objectTemplatePath: statefulset.yaml
-        templateFillMap:
-          ReplicasMin: {{$MEDIUM_GROUP_SIZE}}
-          ReplicasMax: {{$MEDIUM_GROUP_SIZE}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: 1
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-      - basename: small-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{$SMALL_GROUP_SIZE}}
-          ReplicasMax: {{$SMALL_GROUP_SIZE}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: 1
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-      - basename: medium-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{$MEDIUM_GROUP_SIZE}}
-          ReplicasMax: {{$MEDIUM_GROUP_SIZE}}
-  - namespaceRange:
-      min: 1
-      max: {{$namespaces}}
-    replicasPerNamespace: {{$bigJobsPerNamespace}}
-    tuningSet: RandomizedSaturationTimeLimited
-    objectBundle:
-      - basename: big-job
-        objectTemplatePath: job.yaml
-        templateFillMap:
-          ReplicasMin: {{$BIG_GROUP_SIZE}}
-          ReplicasMax: {{$BIG_GROUP_SIZE}}
-
-- name: Waiting for pods to be running
-  measurements:
-  - Method: WaitForControlledPodsRunning
-    Instances:
-     - Identifier: WaitForRunningDeployments
-     - Identifier: WaitForRunningStatefulSets
-     - Identifier: WaitForRunningDaemonSets
-     - Identifier: WaitForRunningJobs
-    Params:
-      action: gather
+- module:
+    path: /modules/reconcile-objects.yaml
+    params:
+      actionName: "creating"
+      namespaces: {{$namespaces}}
+      daemonSetImage: k8s.gcr.io/pause:3.0
+      daemonSetReplicas: 1
+      bigDeploymentSize: {{$BIG_GROUP_SIZE}}
+      bigDeploymentsPerNamespace: {{$bigDeploymentsPerNamespace}}
+      mediumDeploymentSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumDeploymentsPerNamespace: {{$mediumDeploymentsPerNamespace}}
+      smallDeploymentSize: {{$SMALL_GROUP_SIZE}}
+      smallDeploymentsPerNamespace: {{$smallDeploymentsPerNamespace}}
+      smallStatefulSetSize: {{$SMALL_GROUP_SIZE}}
+      smallStatefulSetsPerNamespace: {{$SMALL_STATEFUL_SETS_PER_NAMESPACE}}
+      mediumStatefulSetSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumStatefulSetsPerNamespace: {{$MEDIUM_STATEFUL_SETS_PER_NAMESPACE}}
+      bigJobSize: {{$BIG_GROUP_SIZE}}
+      bigJobsPerNamespace: 1
+      mediumJobSize: {{$MEDIUM_GROUP_SIZE}}
+      mediumJobsPerNamespace: 1
+      smallJobSize: {{$SMALL_GROUP_SIZE}}
+      smallJobsPerNamespace: 1
 
 {{if not $IS_SMALL_CLUSTER}}
 # BEGIN scheduler throughput
