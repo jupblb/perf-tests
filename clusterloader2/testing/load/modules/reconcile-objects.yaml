@@ -258,8 +258,7 @@ steps:
       templateFillMap:
         ReplicasMin: {{MultiplyInt $bigJobSize $minReplicaFactor}}
         ReplicasMax: {{MultiplyInt $bigJobSize $maxReplicaFactor}}
-{{end}}
-{{if and $is_deleting $ENABLE_PVS}}
+{{else if $ENABLE_PVS}}
   - namespaceRange:
       min: 1
       max: {{$namespaces}}
