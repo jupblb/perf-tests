@@ -365,6 +365,8 @@ steps:
       mediumJobsPerNamespace: 0
       smallJobSize: {{$SMALL_GROUP_SIZE}}
       smallJobsPerNamespace: 0
+      pvSmallStatefulSetSize: {{$SMALL_STATEFUL_SETS_PER_NAMESPACE}}
+      pvMediumStatefulSetSize: {{$MEDIUM_STATEFUL_SETS_PER_NAMESPACE}}
 
 - name: Deleting PriorityClass for DaemonSets
   phases:
