@@ -57,14 +57,23 @@
 
 # BEGIN scheduler-throughput section
 # TODO( https://github.com/kubernetes/perf-tests/issues/1027): Lower the number of "min-pods" once we fix the scheduler throughput measurement.
-{{$totalSchedulerThroughputPods := MaxInt (MultiplyInt 2 $MIN_PODS_IN_SMALL_CLUSTERS) .Nodes}}
-{{$schedulerThroughputPodsPerDeployment := .Nodes}}
-{{$schedulerThroughputNamespaces := DivideInt $totalSchedulerThroughputPods $schedulerThroughputPodsPerDeployment}}
+{{if $IS_SMALL_CLUSTER}}
+  {{$schedulerThroughputReplicasPerNamespace := 1}}
+  {{$schedulerThroughputPodsPerDeployment := .Nodes}}
+  {{$schedulerThroughputNamespaces := 1}}
+{{end}}
+{{if and (ge .Nodes 100) (lt .Nodes 1000)}}
+  {{$totalSchedulerThroughputPods := MultiplyInt 2 $MIN_PODS_IN_SMALL_CLUSTERS}}
+  {{$schedulerThroughputReplicasPerNamespace := 1}}
+  {{$schedulerThroughputPodsPerDeployment := .Nodes}}
+  {{$schedulerThroughputNamespaces := DivideInt $totalSchedulerThroughputPods $schedulerThroughputPodsPerDeployment}}
+{{end}}
+{{if ge .Nodes 1000}}
+  {{$schedulerThroughputReplicasPerNamespace := DivideInt .Nodes 1000}}
+  {{$schedulerThroughputPodsPerDeployment := DivideInt .Nodes $schedulerThroughputReplicasPerNamespace}}
+  {{$schedulerThroughputNamespaces := 1}}
+{{end}}
 # END scheduler-throughput section
-
-# Set schedulerThroughputNamespaces to 1 on small clusters otherwise it will result
-# in an unnecessary number of namespaces.
-{{$schedulerThroughputNamespaces := IfThenElse $IS_SMALL_CLUSTER 1 $schedulerThroughputNamespaces}}
 
 # Command to be executed
 {{$EXEC_COMMAND := DefaultParam .CL2_EXEC_COMMAND nil}}
@@ -82,7 +91,10 @@ tuningSets:
 # parallel creation of deployments.
 - name: SchedulerThroughputParallel
   parallelismLimitedLoad:
-    parallelismLimit: {{$schedulerThroughputNamespaces}}
+    parallelismLimit: {{MultiplyInt $schedulerThroughputNamespaces $schedulerThroughputReplicasPerNamespace}}
+- name: DeletionTimeLimited
+  TimeLimited:
+    timeLimit: 5m
 # TODO(https://github.com/kubernetes/perf-tests/issues/1024): This TuningSet is used only for pod-startup-latency, get rid of it
 # Uniform5qps: for each running phase, use 5 qps.
 - name: Uniform5qps
@@ -192,7 +204,7 @@ steps:
     params:
       action: create
       namespaces: {{$namespaces}}
-      replicasPerNamespace: 1
+      replicasPerNamespace: {{$schedulerThroughputReplicasPerNamespace}}
       schedulerThroughputNamespaces: {{$schedulerThroughputNamespaces}}
       schedulerThroughputPodsPerDeployment: {{$schedulerThroughputPodsPerDeployment}}
   {{if $ENABLE_HUGE_SERVICES}}
