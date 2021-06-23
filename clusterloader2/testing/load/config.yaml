@@ -57,21 +57,24 @@
 
 # BEGIN scheduler-throughput section
 # TODO( https://github.com/kubernetes/perf-tests/issues/1027): Lower the number of "min-pods" once we fix the scheduler throughput measurement.
+{{$schedulerThroughputReplicasPerNamespace := 0}}
+{{$schedulerThroughputPodsPerDeployment := 0}}
+{{$schedulerThroughputNamespaces := 0}}
 {{if $IS_SMALL_CLUSTER}}
-  {{$schedulerThroughputReplicasPerNamespace := 1}}
-  {{$schedulerThroughputPodsPerDeployment := .Nodes}}
-  {{$schedulerThroughputNamespaces := 1}}
+  {{$schedulerThroughputReplicasPerNamespace = 1}}
+  {{$schedulerThroughputPodsPerDeployment = .Nodes}}
+  {{$schedulerThroughputNamespaces = 1}}
 {{end}}
 {{if and (ge .Nodes 100) (lt .Nodes 1000)}}
   {{$totalSchedulerThroughputPods := MultiplyInt 2 $MIN_PODS_IN_SMALL_CLUSTERS}}
-  {{$schedulerThroughputReplicasPerNamespace := 1}}
-  {{$schedulerThroughputPodsPerDeployment := .Nodes}}
-  {{$schedulerThroughputNamespaces := DivideInt $totalSchedulerThroughputPods $schedulerThroughputPodsPerDeployment}}
+  {{$schedulerThroughputReplicasPerNamespace = 1}}
+  {{$schedulerThroughputPodsPerDeployment = .Nodes}}
+  {{$schedulerThroughputNamespaces = DivideInt $totalSchedulerThroughputPods $schedulerThroughputPodsPerDeployment}}
 {{end}}
 {{if ge .Nodes 1000}}
-  {{$schedulerThroughputReplicasPerNamespace := DivideInt .Nodes 1000}}
-  {{$schedulerThroughputPodsPerDeployment := DivideInt .Nodes $schedulerThroughputReplicasPerNamespace}}
-  {{$schedulerThroughputNamespaces := 1}}
+  {{$schedulerThroughputReplicasPerNamespace = DivideInt .Nodes 1000}}
+  {{$schedulerThroughputPodsPerDeployment = DivideInt .Nodes $schedulerThroughputReplicasPerNamespace}}
+  {{$schedulerThroughputNamespaces = 1}}
 {{end}}
 # END scheduler-throughput section
 
@@ -92,9 +95,6 @@ tuningSets:
 - name: SchedulerThroughputParallel
   parallelismLimitedLoad:
     parallelismLimit: {{MultiplyInt $schedulerThroughputNamespaces $schedulerThroughputReplicasPerNamespace}}
-- name: DeletionTimeLimited
-  TimeLimited:
-    timeLimit: 5m
 # TODO(https://github.com/kubernetes/perf-tests/issues/1024): This TuningSet is used only for pod-startup-latency, get rid of it
 # Uniform5qps: for each running phase, use 5 qps.
 - name: Uniform5qps
@@ -116,6 +116,9 @@ tuningSets:
     # as each RS changes its size from X to a uniform random value in [X/2, 3X/2].
     # To match 10 [pods/s] requirement, we need to divide saturationTime by 4.
     timeLimit: {{DivideInt $saturationTime 4}}s
+- name: DeletionTimeLimited
+  TimeLimitedLoad:
+    timeLimit: 5m
 - name: RandomizedDeletionTimeLimited
   RandomizedTimeLimitedLoad:
     timeLimit: {{$deletionTime}}s
