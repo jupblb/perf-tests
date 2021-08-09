@@ -27,8 +27,8 @@ spec:
       {{if $PROMETHEUS_SCRAPE_KUBELETS}}
       memory: 10Gi
       {{else}}
-      # Start with 2Gi and add 2Gi for each 1K nodes.
-      memory: {{MultiplyInt 2 (AddInt 1 (DivideInt .Nodes 1000))}}Gi
+      # Start with 4Gi and add 4Gi for each 1K nodes.
+      memory: {{MultiplyInt 4 (AddInt 1 (DivideInt .Nodes 1000))}}Gi
       {{end}}
   ruleSelector:
     matchLabels:
