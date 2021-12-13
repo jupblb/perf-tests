@@ -33,11 +33,11 @@ steps:
     replicasPerNamespace: 1
     tuningSet: Sequence
     objectBundle:
-    - basename: huge-service-deployment
+    - basename: {{$serviceName}}-deployment
       objectTemplatePath: simple-deployment.yaml
       templateFillMap:
         Replicas: {{$endpoints}}
-        Group: huge-service
+        Group: {{$serviceName}}
         CpuRequest: 1m
         MemoryRequest: 10M
         SvcName: {{$serviceName}}
@@ -55,7 +55,7 @@ steps:
     replicasPerNamespace: 1
     tuningSet: Sequence
     objectBundle:
-    - basename: huge-service-deployment
+    - basename: {{$serviceName}}-deployment
       objectTemplatePath: simple-deployment.yaml
       templateFillMap:
         Replicas: {{$endpoints}}
