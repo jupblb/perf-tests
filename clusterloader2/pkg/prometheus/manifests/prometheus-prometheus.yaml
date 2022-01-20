@@ -17,7 +17,7 @@ spec:
   replicas: 1
   resources:
     requests:
-      cpu: {{AddInt 200 (MultiplyInt 500 (DivideInt .Nodes 1000))}}m
+      cpu: {{AddInt 200 (MultiplyInt 1000 (DivideInt .Nodes 1000))}}m
       {{if $PROMETHEUS_SCRAPE_KUBELETS}}
       memory: 10Gi
       {{else}}
