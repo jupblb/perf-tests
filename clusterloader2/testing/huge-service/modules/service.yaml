@@ -4,6 +4,12 @@
 
 ## CL2 params
 {{$CHECK_IF_PODS_ARE_UPDATED := DefaultParam .CL2_CHECK_IF_PODS_ARE_UPDATED true}}
+# For very large number of pods it is better to split creating them into
+# deployments. The number of pods in each such deployment should be a divisor
+# of the total number of pods.
+{{$HUGE_SERVICE_PODS_PER_DEPLOYMENT := DefaultParam .CL2_HUGE_SERVICE_PODS_PER_DEPLOYMENT 1000}}
+
+{{$deployments := DivideInt $endpoints $HUGE_SERVICE_PODS_PER_DEPLOYMENT}}
 
 steps:
 - name: Create {{$serviceName}}
@@ -34,13 +40,13 @@ steps:
   - namespaceRange:
       min: 1
       max: 1
-    replicasPerNamespace: 1
+    replicasPerNamespace: {{$deployments}}
     tuningSet: Sequence
     objectBundle:
     - basename: huge-service-deployment
       objectTemplatePath: simple-deployment.yaml
       templateFillMap:
-        Replicas: {{$endpoints}}
+        Replicas: {{$HUGE_SERVICE_PODS_PER_DEPLOYMENT}}
         Group: huge-service
         CpuRequest: 1m
         MemoryRequest: 10M
