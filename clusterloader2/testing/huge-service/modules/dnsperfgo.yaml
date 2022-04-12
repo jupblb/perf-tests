@@ -1,0 +1,41 @@
+{{$action := .action}}
+{{$is_creating := (eq .action "create")}}
+
+## CL2 params
+{{$CHECK_IF_PODS_ARE_UPDATED := DefaultParam .CL2_CHECK_IF_PODS_ARE_UPDATED true}}
+{{$DNSTEST_PODS := DefaultParam .CL2_HUGE_SERVICE_DNSTEST_PODS 25}}
+
+steps:
+{{if $is_creating}}
+- name: Start dnsperfgo measurements
+  measurements:
+  - Identifier: WaitForDnsTestDeployment
+    Method: WaitForControlledPodsRunning
+    Params:
+      action: start
+      apiVersion: apps/v1
+      checkIfPodsAreUpdated: {{$CHECK_IF_PODS_ARE_UPDATED}}
+      kind: Deployment
+      labelSelector: group = dnsperfgo
+      operationTimeout: 15m
+{{end}}
+- name: {{$action}} dnsperfgo pods
+  phases:
+  - namespaceRange:
+      min: 1
+      max: 1
+    replicasPerNamespace: {{if $is_creating}}1{{else}}0{{end}}
+    tuningSet: Sequence
+    objectBundle:
+    - basename: dnsperfgo-deployment
+      objectTemplatePath: simple-deployment.yaml
+      templateFillMap:
+        EnableDNSTests: true
+        Group: dnsperfgo
+        Replicas: {{$DNSTEST_PODS}}
+- name: Waiting for dnsperfgo pods to be {{$action}}ed
+  measurements:
+  - Identifier: WaitForDnsTestDeployment
+    Method: WaitForControlledPodsRunning
+    Params:
+      action: gather

@@ -4,6 +4,7 @@
 {{$CpuRequest := DefaultParam .CpuRequest "5m"}}
 {{$MemoryRequest := DefaultParam .MemoryRequest "20M"}}
 {{$Image := DefaultParam .Image "k8s.gcr.io/pause:3.1"}}
+{{$EnableDNSTests := DefaultParam .EnableDNSTests false}}
 
 apiVersion: apps/v1
 kind: Deployment
@@ -27,9 +28,25 @@ spec:
     spec:
       hostNetwork: {{$HostNetworkMode}}
       containers:
+{{if $EnableDNSTests}}
+      - image: gcr.io/k8s-staging-perf-tests/dnsperfgo:v1.2.0
+      # Fetches the dns server from /etc/resolv.conf and
+      # sends 1 query per second.
+      # With searchpath expansion, this is upto 12 queries per second.
+      # dnsperfgo has a default client timeout of 5s. It sends queries for 60s,
+      # then sleeps for 10s, to mimic bursts of DNS queries.
+        command:
+        - sh
+        - -c
+        - server=$(cat /etc/resolv.conf | grep nameserver | cut -d ' ' -f 2); echo
+          "Using nameserver ${server}";
+          ./dnsperfgo -duration 60s -idle-duration 10s -inputfile /var/configmap/all-queries -qps 1;
+        name: {{.Name}}-dnsperf
+{{else}}
       - image: {{$Image}}
-        imagePullPolicy: IfNotPresent
         name: {{.Name}}
+{{end}}
+        imagePullPolicy: IfNotPresent
         ports:
         resources:
           requests:

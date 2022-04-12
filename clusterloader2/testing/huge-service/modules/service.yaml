@@ -41,7 +41,7 @@ steps:
       objectTemplatePath: simple-deployment.yaml
       templateFillMap:
         Replicas: {{$endpoints}}
-        Group: huge-service
+        Group: {{$serviceName}}
         CpuRequest: 1m
         MemoryRequest: 10M
         SvcName: {{$serviceName}}
