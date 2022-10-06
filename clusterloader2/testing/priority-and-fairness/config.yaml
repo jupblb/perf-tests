@@ -1,0 +1,101 @@
+# Benchmark Priority and Fairness
+{{$pods := DefaultParam .CL2_BENCHMARK_PODS 1}}
+{{$configMaps := DefaultParam .CL2_BENCHMARK_CONFIG_MAP_NUMBER 1}}
+
+name: P&F benchmark
+namespace:
+  number: 1
+tuningSets:
+- name: Sequence
+  parallelismLimitedLoad:
+    parallelismLimit: 1
+steps:
+- name: Setup permissions
+  phases:
+  - namespaceRange:
+      min: 1
+      max: 1
+    tuningSet: Sequence
+    replicasPerNamespace: 1
+    objectBundle:
+    - basename: benchmark-role
+      objectTemplatePath: cluster-role.yaml
+  - namespaceRange:
+      min: 1
+      max: 1
+    tuningSet: Sequence
+    replicasPerNamespace: 1
+    objectBundle:
+    - basename: benchmark-role-binding
+      objectTemplatePath: cluster-role-binding.yaml
+- name: Create config map(s)
+  phases:
+  - namespaceRange:
+      min: 1
+      max: 1
+    tuningSet: Sequence
+    replicasPerNamespace: {{$configMaps}}
+    objectBundle:
+    - basename: benchmark-config-map
+      objectTemplatePath: configmap.yaml
+- name: Creating pods running measurement
+  measurements:
+  - Identifier: WaitForBenchmarkDeployment
+    Method: WaitForControlledPodsRunning
+    Params:
+      action: start
+      apiVersion: apps/v1
+      checkIfPodsAreUpdated: true
+      kind: Deployment
+      labelSelector: group = benchmark
+      operationTimeout: 5m
+- name: Deploy benchmark
+  phases:
+  - namespaceRange:
+      min: 1
+      max: 1
+    tuningSet: Sequence
+    replicasPerNamespace: 1
+    objectBundle:
+    - basename: benchmark-deployment
+      objectTemplatePath: deployment.yaml
+      templateFillMap:
+        Replicas: {{$pods}}
+- name: Waiting for benchmark pods to be running
+  measurements:
+  - Identifier: WaitForBenchmarkDeployment
+    Method: WaitForControlledPodsRunning
+    Params:
+      action: gather
+- module:
+    path: modules/measurements.yaml
+    params:
+      action: start
+- name: Wait 5min
+  measurements:
+    - Identifier: Wait
+      Method: Sleep
+      Params:
+        duration: 5m
+- module:
+    path: modules/measurements.yaml
+    params:
+      action: gather
+- name: Delete benchmark
+  phases:
+  - namespaceRange:
+      min: 1
+      max: 1
+    tuningSet: Sequence
+    replicasPerNamespace: 1
+    objectBundle:
+    - basename: benchmark-deployment
+      objectTemplatePath: deployment.yaml
+      templateFillMap:
+        Replicas: 0
+- name: Waiting for benchmark pods to be deleted
+  measurements:
+  - Identifier: WaitForBenchmarkDeployment
+    Method: WaitForControlledPodsRunning
+    Params:
+      action: gather

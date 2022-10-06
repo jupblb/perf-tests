@@ -1,0 +1,11 @@
+{{$bytes := DefaultParam .CL2_BENCHMARK_CONFIG_MAP_BYTES 1000}}
+{{$group := DefaultParam .CL2_BENCHMARK_CONFIG_MAP_GROUP .Name}}
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{.Name}}
+  labels:
+    group: {{$group}}
+data:
+  key: "{{range $i := Loop $bytes}}{{RandIntRange 0 9}}{{end}}"

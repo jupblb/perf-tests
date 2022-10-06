@@ -1,0 +1,40 @@
+{{$debug := DefaultParam .CL2_BENCHMARK_DEBUG false}}
+{{$image := DefaultParam .CL2_BENCHMARK_IMAGE "gcr.io/gke-scalability-images/penfmark:latest"}}
+{{$inflight := DefaultParam .CL2_BENCHMARK_INFLIGHT 10}}
+{{$uri := DefaultParam .CL2_BENCHMARK_URI "/api/v1/namespaces/%namespace%/pods"}}
+
+{{$cpu := DefaultParam .CL2_BENCHMARK_POD_CPU "500m"}}
+{{$memory := DefaultParam .CL2_BENCHMARK_POD_MEMORY "100Mi"}}
+
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{.Name}}
+  labels:
+    group: benchmark
+spec:
+  replicas: {{.Replicas}}
+  selector:
+    matchLabels:
+      name: {{.Name}}
+  template:
+    metadata:
+      labels:
+        name: {{.Name}}
+        group: benchmark
+    spec:
+      containers:
+      - name: {{.Name}}
+        imagePullPolicy: Always
+        image: {{$image}}
+        args:
+        - --inflight={{$inflight}}
+        - --namespace={{.Namespace}}
+        - --uri={{$uri}}
+{{if $debug}}
+        - --debug
+{{end}}
+        resources:
+          requests:
+            cpu: {{$cpu}}
+            memory: {{$memory}}
